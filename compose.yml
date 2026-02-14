@@ -4,10 +4,12 @@ volumes:
   kafka_data:        # Named volume for Kafka log and topic data
   ivy_cache:         # Named volume for pyspark installed packages
   postgres_data:
-
+  grafana:
+  
 networks:
   stock_data:       # Shared network for containers communication
-
+  monitoring:
+ 
 services:
   spark-master:
     image: spark:3.5.1-python3              # Use the official Apache Spark image with Python 3 support (v3.5.7)
@@ -28,6 +30,7 @@ services:
       - spark-data:/opt/spark-data           # Mount a named volume to persist Spark logs or data
     networks:
       - stock_data                          # Connect the container to a shared Docker network for inter-service communication
+      - monitoring
 
   # ------------------------------------------------------------
   # Spark Worker Node
@@ -49,6 +52,7 @@ services:
       - spark-data:/opt/spark-data           # Share the same named volume for logs/data if needed
     networks:
       - stock_data                          # Attach to same network so it can communicate with the master
+      - monitoring
 
   consumer:
     build:
@@ -100,7 +104,7 @@ services:
       - kafka_data:/var/lib/kafka/data          # Persist Kafka message data
     networks:
       - stock_data                             # Attach Kafka to shared network for UI and Spark
-
+      - monitoring
   # -------------------- KAFKA UI SERVICE --------------------
   kafka-ui:
     container_name: kafka-ui                    # Name for the Kafka UI container
@@ -131,6 +135,20 @@ services:
       - postgres_data:/var/lib/postgres/data
     networks:
       - stock_data
+      - monitoring
+  
+  postgres_exporter:
+    image: prometheuscommunity/postgres-exporter:v0.17.1
+    container_name: postgres_exporter
+    restart: always
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/mydb?sslmode=disable"
+    ports:
+      - "9187:9187"
+    depends_on:
+      - postgres
+    networks:
+      - monitoring
       
   pgadmin:
     image: dpage/pgadmin4:9
@@ -145,3 +163,35 @@ services:
       - postgres
     networks:
       - stock_data
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    container_name: prometheus
+    hostname: prometheus
+    restart: unless-stopped
+    tty: true
+    ports:
+      - 9090:9090
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana:12.0
+    container_name: grafana
+    restart: unless-stopped
+    environment:
+      - GF_AUTH_PROXY_ENABLED=true
+      - GF_PATHS_PROVISIONING=/var/lib/grafana/provisioning/
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    ports:
+      - 3001:3000
+    depends_on:
+      - prometheus
+    volumes:
+      - grafana:/var/lib/grafana/
+      - ./grafana:/etc/grafana/provisioning/datasources
+    networks:
+      - monitoring
