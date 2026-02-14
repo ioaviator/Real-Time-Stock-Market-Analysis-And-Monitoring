@@ -8,7 +8,7 @@
  [**Data Source** ](https://rapidapi.com/alphavantage/api/alpha-vantage/playground/apiendpoint_55220bb2-8a64-4cde-89e1-87ec00947f57)
 
  ### Data Pipeline Architecture
- ![Data Pipeline Architecture](./_img/real_time_pipeline.png)
+ ![Data Pipeline Architecture](./_img/data_pipeline.png)
 
  ### Business Understanding
 
