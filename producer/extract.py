@@ -21,10 +21,10 @@ def connect_to_api() -> List[Dict]:
     stocks = ['TSLA', 'MSFT', 'GOOGL']
     json_response = []
 
-    for stock in range(0, stocks):
+    for stock in stocks:
         querystring = {
             "function": "TIME_SERIES_INTRADAY",
-            "symbol": f"{stocks[stock]}",
+            "symbol": f"{stock}",
             "outputsize": "compact",
             "interval": "5min",
             "datatype": "json"
@@ -35,7 +35,7 @@ def connect_to_api() -> List[Dict]:
             response.raise_for_status()
 
             data = response.json()
-            logger.info(f"Stocks {stocks[stock]} loaded successfully")
+            logger.info(f"Stocks {stock} loaded successfully")
 
             json_response.append(data)
 
