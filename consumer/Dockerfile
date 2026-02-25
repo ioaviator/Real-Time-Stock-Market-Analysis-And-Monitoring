@@ -18,7 +18,8 @@ CMD ["/opt/spark/bin/spark-submit",\
   "--conf", "spark.jars.ivy=/opt/spark/work-dir/.ivy2",\
   "--conf","spark.executor.extraJavaOptions=-Duser.timezone=UTC",\
   "--conf","spark.driver.extraJavaOptions=-Duser.timezone=UTC",\
-  "--packages","org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1,org.postgresql:postgresql:42.7.3",\
+  "--conf", "spark.sql.streaming.streamingQueryListeners=net.heartsavior.spark.KafkaOffsetCommitterListener", \
+  "--packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1,org.postgresql:postgresql:42.7.3,net.heartsavior.spark:spark-sql-kafka-offset-committer_2.12:0.1.0", \
   "/opt/spark/work-dir/apps/consumer.py"\
 ]
 

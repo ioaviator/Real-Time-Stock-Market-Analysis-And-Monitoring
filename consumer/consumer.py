@@ -14,6 +14,7 @@ spark = (SparkSession.builder
 df = (spark.readStream.format('kafka')
       .option('kafka.bootstrap.servers', 'kafka:9092')
       .option('subscribe', 'stock_analysis')  # Topic subscription
+      .option('kafka.group.id', 'spark-consumer-group') # Required for commits
       .option('startingOffsets', 'latest')  # Read only new incoming messages
       .option('failOnDataLoss', 'false')  # Continue reading even if Kafka deletes old messages
       .load()  # Start reading the Kafka topic as a stream
