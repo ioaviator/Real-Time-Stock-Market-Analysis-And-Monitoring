@@ -30,7 +30,6 @@ services:
       - spark-data:/opt/spark-data           # Mount a named volume to persist Spark logs or data
     networks:
       - stock_data                          # Connect the container to a shared Docker network for inter-service communication
-      - monitoring
 
   # ------------------------------------------------------------
   # Spark Worker Node
@@ -52,7 +51,6 @@ services:
       - spark-data:/opt/spark-data           # Share the same named volume for logs/data if needed
     networks:
       - stock_data                          # Attach to same network so it can communicate with the master
-      - monitoring
 
   consumer:
     build:
@@ -73,12 +71,14 @@ services:
 
     # -------------------- KAFKA SERVICE --------------------
   kafka:
-    image: confluentinc/cp-kafka:7.4.10   # Use the Confluent Kafka image (version 7.4.10)
+    build: ./kafka   
+    image: kafka_monitor:v1                           # Use the Confluent Kafka image (version 7.4.10)
     container_name: kafka                 # Explicit container name for easier reference
     hostname: kafka                       # Hostname used inside Docker network
     ports:
       - "9092:9092"                       # Internal listener for Docker containers
       - "9094:9094"                       # External listener for local host (Python clients)
+      - "7071:7071"                       # JMX exporter metrics port for Prometheus
     environment:
       KAFKA_KRAFT_MODE: "true"            # Enable KRaft mode (no Zookeeper)
       KAFKA_PROCESS_ROLES: controller,broker   # Kafka acts as both controller and broker
@@ -99,7 +99,8 @@ services:
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0 # No delay before consumer group rebalance
       CLUSTER_ID: "jbzXiYiPQ8a2ejaWHK4Q3w"      # Unique cluster ID for KRaft mode 
       # generate cluster_id  docker: run --rm confluentinc/cp-kafka:7.4.10 kafka-storage random-uuid
-
+      KAFKA_OPTS: -javaagent:/usr/app/jmx_prometheus_javaagent.jar=7071:/usr/app/prom-jmx-agent-config.yml
+  
     volumes:
       - kafka_data:/var/lib/kafka/data          # Persist Kafka message data
     networks:
@@ -140,20 +141,31 @@ services:
   postgres_exporter:
     image: prometheuscommunity/postgres-exporter:v0.17.1
     container_name: postgres_exporter
-    restart: always
+    restart: unless-stopped
     environment:
-      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/mydb?sslmode=disable"
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/stock_data?sslmode=disable"
     ports:
       - "9187:9187"
     depends_on:
       - postgres
     networks:
       - monitoring
+  
+  kafka-exporter:
+    image: danielqsj/kafka-exporter:v1.9.0
+    restart: unless-stopped
+    depends_on:
+      - kafka
+    ports:
+      - "9308:9308"
+    command: ["--kafka.server=kafka:9092"]
+    networks:
+      - monitoring
       
   pgadmin:
     image: dpage/pgadmin4:9
     container_name: pgadmin
-    restart: always
+    restart: unless-stopped
     environment: 
       PGADMIN_DEFAULT_EMAIL: admin@admin.com
       PGADMIN_DEFAULT_PASSWORD: admin
