@@ -1,4 +1,4 @@
-   
+lowercaseOutputLabelNames: true
 lowercaseOutputName: true
 rules:
 - pattern : kafka.cluster<type=(.+), name=(.+), topic=(.+), partition=(.+)><>Value

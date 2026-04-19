@@ -1,13 +1,13 @@
 # -------------------- VOLUMES & NETWORKS --------------------
 volumes:
-  spark-data:        # Named volume for Spark to persist logs/data
-  kafka_data:        # Named volume for Kafka log and topic data
-  ivy_cache:         # Named volume for pyspark installed packages
+  spark-data:
+  kafka_data:
+  ivy_cache:
   postgres_data:
   grafana:
   
 networks:
-  stock_data:       # Shared network for containers communication
+  stock_data:
   monitoring:
  
 services:
@@ -54,7 +54,7 @@ services:
 
   consumer:
     build:
-      context: ./consumer              # Use same Apache Spark image for PySpark streaming
+      context: ./spark_consumer              # Use same Apache Spark image for PySpark streaming
       dockerfile: Dockerfile
     image: stream_consumer:v1
     container_name: consumer          # Assign a name for the streaming job container
@@ -65,7 +65,7 @@ services:
     restart: unless-stopped
     volumes:
       - ivy_cache:/opt/spark/work-dir/.ivy2
-      - ./consumer:/opt/spark/work-dir/apps
+      - ./spark_consumer:/opt/spark/work-dir/apps
     networks:
       - stock_data  
 
@@ -84,10 +84,9 @@ services:
       KAFKA_PROCESS_ROLES: controller,broker   # Kafka acts as both controller and broker
       KAFKA_NODE_ID: 1                    # Unique ID for this Kafka node
       KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093" # Define controller voters (only one here)
-            
+      
       KAFKA_LISTENERS: PLAINTEXT_INTERNAL://0.0.0.0:9092,PLAINTEXT_EXTERNAL://0.0.0.0:9094,CONTROLLER://0.0.0.0:9093
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT_INTERNAL://kafka:9092,PLAINTEXT_EXTERNAL://localhost:9094
-
       # Map listener names to security protocols
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT_INTERNAL:PLAINTEXT,PLAINTEXT_EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL   # Brokers communicate via internal listener
@@ -98,13 +97,12 @@ services:
       KAFKA_LOG_RETENTION_HOURS: 168            # Keep messages for 7 days
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0 # No delay before consumer group rebalance
       CLUSTER_ID: "jbzXiYiPQ8a2ejaWHK4Q3w"      # Unique cluster ID for KRaft mode 
-      # generate cluster_id  docker: run --rm confluentinc/cp-kafka:7.4.10 kafka-storage random-uuid
-      KAFKA_OPTS: -javaagent:/usr/app/jmx_prometheus_javaagent.jar=7071:/usr/app/prom-jmx-agent-config.yml
-  
+      # generate cluster_id: docker run --rm confluentinc/cp-kafka:7.4.10 kafka-storage random-uuid
+      KAFKA_OPTS: "-javaagent:/usr/app/jmx_prometheus_javaagent.jar=7071:/usr/app/prom-jmx-agent-config.yml"
     volumes:
       - kafka_data:/var/lib/kafka/data          # Persist Kafka message data
     networks:
-      - stock_data                             # Attach Kafka to shared network for UI and Spark
+      - stock_data                             # Attach Kafka to shared network
       - monitoring
   # -------------------- KAFKA UI SERVICE --------------------
   kafka-ui:
@@ -153,7 +151,7 @@ services:
   
   kafka-exporter:
     image: danielqsj/kafka-exporter:v1.9.0
-    restart: unless-stopped
+    restart: always
     depends_on:
       - kafka
     ports:
@@ -195,7 +193,6 @@ services:
     restart: unless-stopped
     environment:
       - GF_AUTH_PROXY_ENABLED=true
-      - GF_PATHS_PROVISIONING=/var/lib/grafana/provisioning/
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
     ports:
@@ -203,7 +200,7 @@ services:
     depends_on:
       - prometheus
     volumes:
-      - grafana:/var/lib/grafana/
-      - ./grafana:/etc/grafana/provisioning/datasources
+      - ./grafana/:/etc/grafana/provisioning/datasources/
+      - grafana:/var/lib/grafana
     networks:
       - monitoring
